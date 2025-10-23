@@ -10,9 +10,6 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { ProfileModule } from './modules/profile/profile.module';
-import { QuotaModule } from './modules/quota/quota.module';
-import { ActivityModule } from './modules/activity/activity.module';
 
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -59,9 +56,6 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     // Feature modules
     AuthModule,
     UserModule,
-    ProfileModule,
-    QuotaModule,
-    ActivityModule,
   ],
   providers: [
     {

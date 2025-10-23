@@ -18,10 +18,10 @@
          │                 │              │                 │
          │  - iOS App      │              │  - Auth Module  │
          │  - Android App  │              │  - User Module  │
-         │  - Expo         │              │  - Profile      │
-         │                 │              │  - Quota        │
-         │  (TBD by FE)    │              │  - Activity     │
-         └─────────────────┘              │  - Health       │
+         │  - Expo         │              │  - Health       │
+         │                 │              │                 │
+         │  (TBD by FE)    │              │  (Other modules │
+         └─────────────────┘              │   TBD later)    │
                                           └────────┬────────┘
                                                    │
                                                    │ Prisma ORM
@@ -29,20 +29,22 @@
                                           ┌────────▼────────┐
                                           │   PostgreSQL    │
                                           │   Database      │
-                                          │ (composer_db)   │
+                                          │  (coth_mobile)  │
                                           │  Port: 5432     │
-                                          └────────▲────────┘
+                                          └─────────────────┘
                                                    │
-                                                   │ Shared DB
+                                                   │ Data Migration
+                                                   │ (planned later)
                                                    │
-                                          ┌────────┴────────┐
+                                          ┌────────▼────────┐
                                           │   EasyMate/     │
                                           │   Buela API     │
                                           │  (buela-all)    │
                                           │  Port: 3002     │
+                                          │  (composer_db)  │
                                           └─────────────────┘
 
-      Same Database - Different Applications - No Data Duplication
+      Separate Databases - Will migrate/link data later
 ```
 
 ---
@@ -61,10 +63,8 @@ coth-mobile/                         # Root directory (separate from buela-all)
 │   │   │   ├── modules/             # Domain modules
 │   │   │   │   ├── auth/           # Authentication
 │   │   │   │   ├── user/           # User management
-│   │   │   │   ├── profile/        # Profile management
-│   │   │   │   ├── quota/          # Quota tracking
-│   │   │   │   ├── activity/       # Activity feed
 │   │   │   │   └── health/         # Health monitoring
+│   │   │   │   # (Other modules TBD later)
 │   │   │   ├── common/             # Shared code
 │   │   │   │   ├── prisma/         # Database service
 │   │   │   │   ├── filters/        # Exception filters
@@ -72,7 +72,7 @@ coth-mobile/                         # Root directory (separate from buela-all)
 │   │   │   ├── app.module.ts       # Root module
 │   │   │   └── main.ts             # Entry point
 │   │   ├── prisma/
-│   │   │   └── schema.prisma       # DB schema (subset)
+│   │   │   └── schema.prisma       # DB schema (separate DB)
 │   │   ├── test/                   # Tests
 │   │   └── package.json
 │   │
@@ -95,77 +95,74 @@ coth-mobile/                         # Root directory (separate from buela-all)
 
 ## 🗄️ Database Architecture
 
-### Shared Database Strategy
+### Separate Database Strategy
 
-#### Why Shared Database?
+#### Why Separate Database?
 
-**Decision**: Use the **same PostgreSQL database** as EasyMate/Buela
+**Decision**: Use a **separate PostgreSQL database** for COTH Mobile
 
 **Rationale**:
-1. ✅ **No Data Migration**: Instant access to all user data
-2. ✅ **Single Source of Truth**: No sync issues
-3. ✅ **Zero Duplication**: Same users, same data
-4. ✅ **Simpler Development**: No data sync logic
-5. ✅ **Cost Effective**: One database to maintain
-6. ✅ **Real-time Consistency**: Changes reflect immediately
+1. ✅ **Independent Evolution**: COTH can evolve without affecting EasyMate
+2. ✅ **Clear Boundaries**: Better separation of concerns
+3. ✅ **Simpler Schema**: Only models needed for mobile features
+4. ✅ **Easier Testing**: Can reset/test without affecting EasyMate
+5. ✅ **Migration Flexibility**: Can migrate/link data when ready
+6. ✅ **Performance Isolation**: COTH load won't impact EasyMate
 
 ### Database Connection
 
 ```typescript
-// Both projects connect to the same database
-// Location: localhost:5432/composer_db
+// Separate databases for each project
 
 // EasyMate/Buela (buela-all)
 DATABASE_URL="postgresql://admin:admin@localhost:5432/composer_db"
 
-// COTH Mobile (coth-mobile)
-DATABASE_URL="postgresql://admin:admin@localhost:5432/composer_db"  // Same!
+// COTH Mobile (coth-mobile) - Different database
+DATABASE_URL="postgresql://admin:admin@localhost:5432/coth_mobile"
 ```
 
 ### Schema Management
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                   PostgreSQL Database                     │
-│                     (composer_db)                         │
+│              COTH Mobile PostgreSQL Database              │
+│                     (coth_mobile)                         │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
-│  │  Tables (97+ models)                               │ │
+│  │  Core Tables (MVP - User & Auth Only)              │ │
 │  │                                                    │ │
-│  │  Core Tables:                                      │ │
-│  │    - User                                          │ │
-│  │    - Company                                       │ │
-│  │    - Address                                       │ │
-│  │    - AuthProvider                                  │ │
+│  │  User Management:                                  │ │
+│  │    - User         (core user model)                │ │
+│  │    - AuthProvider (OAuth providers)                │ │
+│  │    - Role         (user roles/permissions)         │ │
 │  │                                                    │ │
-│  │  Agent Tables:                                     │ │
-│  │    - Agent                                         │ │
-│  │    - AgentUserConversation                        │ │
-│  │    - AgentUserMessage                             │ │
+│  │  Enums:                                            │ │
+│  │    - EnumUserRole                                  │ │
+│  │    - EnumUserStatus                                │ │
+│  │    - EnumRegistrationReferralChannel               │ │
 │  │                                                    │ │
-│  │  Collection Tables:                                │ │
-│  │    - CollectionDefinition                         │ │
-│  │    - CollectionEntry                              │ │
-│  │    - CollectionEntryData                          │ │
-│  │                                                    │ │
-│  │  Quota Tables:                                     │ │
-│  │    - QuotaDefinition                              │ │
-│  │    - UserAgentQuota                               │ │
-│  │    - QuotaUsage                                    │ │
-│  │    - QuotaEvent                                    │ │
-│  │                                                    │ │
-│  │  Audit & Activity:                                 │ │
-│  │    - AuditLog                                      │ │
-│  │                                                    │ │
-│  │  And 80+ more tables...                           │ │
+│  │  Other models will be added later as needed       │ │
 │  └────────────────────────────────────────────────────┘ │
 │                                                          │
 │  Schema is maintained in:                               │
-│    buela-all/apps/builder/api/prisma/schema/            │
-│                                                          │
-│  COTH Mobile uses a subset:                             │
 │    coth-mobile/apps/api/prisma/schema.prisma            │
-│    (includes only models needed for mobile API)         │
+│                                                          │
+│  Data Migration Strategy (Future):                      │
+│    - Option 1: Periodic sync from EasyMate             │
+│    - Option 2: API-based data access                   │
+│    - Option 3: ETL pipeline                            │
+│    - Decision: TBD based on requirements               │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────┐
+│            EasyMate PostgreSQL Database                   │
+│                     (composer_db)                         │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Full Schema (97+ models)                          │ │
+│  │    - All EasyMate/Buela features                   │ │
+│  │    - Agent, Collections, Workflows, etc.           │ │
+│  └────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -198,14 +195,11 @@ DATABASE_URL="postgresql://admin:admin@localhost:5432/composer_db"  // Same!
 │  │  Feature Modules                                   │ │
 │  │                                                    │ │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │ │
-│  │  │   Auth   │  │   User   │  │ Profile  │       │ │
+│  │  │   Auth   │  │   User   │  │  Health  │       │ │
 │  │  │  Module  │  │  Module  │  │  Module  │       │ │
 │  │  └──────────┘  └──────────┘  └──────────┘       │ │
 │  │                                                    │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │ │
-│  │  │  Quota   │  │ Activity │  │  Health  │       │ │
-│  │  │  Module  │  │  Module  │  │  Module  │       │ │
-│  │  └──────────┘  └──────────┘  └──────────┘       │ │
+│  │  (Other modules will be added later as needed)    │ │
 │  │                                                    │ │
 │  └───────────────────────┬───────────────────────────┘ │
 │                          │                             │
@@ -249,16 +243,24 @@ DATABASE_URL="postgresql://admin:admin@localhost:5432/composer_db"  // Same!
 auth/
 ├── dto/                    # Data transfer objects
 │   ├── login.dto.ts
+│   ├── login.input.ts
 │   ├── register.dto.ts
+│   ├── register.input.ts
 │   └── refresh-token.dto.ts
+├── entities/
+│   └── auth-response.entity.ts
 ├── guards/                 # Route guards
 │   ├── jwt-auth.guard.ts
+│   ├── gql-auth.guard.ts
 │   └── google-auth.guard.ts
 ├── strategies/             # Passport strategies
 │   ├── jwt.strategy.ts
 │   ├── jwt-refresh.strategy.ts
 │   └── google.strategy.ts
-├── auth.controller.ts      # HTTP endpoints
+├── decorators/
+│   └── current-user.decorator.ts
+├── auth.controller.ts      # REST endpoints
+├── auth.resolver.ts        # GraphQL resolvers
 ├── auth.service.ts         # Business logic
 └── auth.module.ts          # Module definition
 ```
@@ -269,38 +271,45 @@ auth/
 - User CRUD operations
 - User lookup (by UUID, email)
 - User deletion (soft delete)
+- User profile management
 
-#### 3. Profile Module
+**Components**:
+```
+user/
+├── entities/
+│   └── user.entity.ts
+├── user.controller.ts      # REST endpoints
+├── user.resolver.ts        # GraphQL resolvers
+├── user.service.ts         # Business logic
+└── user.module.ts          # Module definition
+```
 
-**Responsibilities**:
-- Extended user profile
-- Profile updates
-- Welcome/onboarding flow
-- Additional information tracking
-
-#### 4. Quota Module
-
-**Responsibilities**:
-- Quota information retrieval
-- Usage tracking
-- Event history
-- Quota availability checks
-
-#### 5. Activity Module
+#### 3. Health Module
 
 **Responsibilities**:
-- Aggregated activity feed
-- Conversation history
-- Collection activity
-- Multi-source aggregation
-
-#### 6. Health Module
-
-**Responsibilities**:
-- Database health
+- Database health checks
 - Memory monitoring
 - Disk monitoring
-- Kubernetes probes
+- Kubernetes probes (liveness/readiness)
+
+**Components**:
+```
+health/
+├── entities/
+│   └── health-status.entity.ts
+├── health.controller.ts    # REST endpoints
+├── health.resolver.ts      # GraphQL resolvers
+├── health.service.ts       # Health check logic
+└── health.module.ts        # Module definition
+```
+
+#### Future Modules (TBD)
+
+These modules will be implemented later based on requirements:
+- Profile Module (extended user information)
+- Quota Module (usage tracking)
+- Activity Module (activity feed)
+- Other domain-specific modules
 
 ---
 

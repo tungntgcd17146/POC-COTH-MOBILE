@@ -1,20 +1,21 @@
 # COTH Mobile - Monorepo
 
-> **Separate monorepo from EasyMate/Buela** with **shared database infrastructure**
+> **Separate monorepo from EasyMate/Buela** with **separate database** (will migrate/link data later)
 
 ## 🎯 Overview
 
-COTH Mobile is a **standalone Turborepo monorepo** for mobile application development. While it's a separate codebase from `buela-all` (EasyMate), the backend API connects to the **same PostgreSQL database** to avoid data duplication and maintain a single source of truth.
+COTH Mobile is a **standalone Turborepo monorepo** for mobile application development. This is a completely separate codebase from `buela-all` (EasyMate) with its **own PostgreSQL database**. We will implement data migration/synchronization with EasyMate later as needed.
 
 ### Key Architecture Decisions
 
 | Aspect | Decision | Rationale |
 |--------|----------|-----------|
 | **Monorepo** | Separate from buela-all | Independent deployment and development |
-| **Database** | Shared with EasyMate | No data duplication, single source of truth |
-| **Backend** | NestJS REST API | Mobile-optimized endpoints |
+| **Database** | Separate database (coth_mobile) | Independent evolution, simpler schema |
+| **Backend** | NestJS REST + GraphQL API | Mobile-optimized endpoints |
 | **Frontend** | React Native (TBD) | Native mobile experience |
 | **Build Tool** | Turborepo | Fast, efficient builds |
+| **Modules** | User + Auth only (MVP) | Start simple, add features incrementally |
 
 ---
 
@@ -28,10 +29,8 @@ coth-mobile/                          # Separate monorepo root
 │   │   │   ├── modules/              # Feature modules
 │   │   │   │   ├── auth/            # ✅ Authentication (JWT, OAuth)
 │   │   │   │   ├── user/            # ✅ User management
-│   │   │   │   ├── profile/         # ✅ User profile
-│   │   │   │   ├── quota/           # ✅ Quota tracking
-│   │   │   │   ├── activity/        # ✅ Activity feed
 │   │   │   │   └── health/          # ✅ Health checks
+│   │   │   │   # (Other modules TBD later)
 │   │   │   ├── common/              # Shared utilities
 │   │   │   │   ├── prisma/          # Database service
 │   │   │   │   ├── filters/         # Exception filters
@@ -39,7 +38,7 @@ coth-mobile/                          # Separate monorepo root
 │   │   │   ├── app.module.ts        # Root module
 │   │   │   └── main.ts              # Entry point
 │   │   ├── prisma/
-│   │   │   └── schema.prisma        # Database schema (shared with EasyMate)
+│   │   │   └── schema.prisma        # Database schema (separate DB)
 │   │   ├── package.json
 │   │   └── README.md
 │   │
@@ -64,40 +63,61 @@ coth-mobile/                          # Separate monorepo root
 
 ## 🔄 Database Architecture
 
-### Shared Database Strategy
+### Separate Database Strategy
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     PostgreSQL Database                      │
-│                    (composer_db on :5432)                    │
+┌──────────────────────────────────────────────────────────────┐
+│                    COTH Mobile Database                       │
+│                  PostgreSQL (coth_mobile)                     │
 │                                                              │
-│  Tables: User, Company, Agent, Collection, Quota, etc.      │
-└─────────────────────┬───────────────────┬───────────────────┘
-                      │                   │
-        ┌─────────────┴────────┐    ┌─────┴──────────────┐
-        │   EasyMate/Buela     │    │   COTH Mobile      │
-        │     (buela-all)      │    │   (coth-mobile)    │
-        │                      │    │                    │
-        │  GraphQL API :3002   │    │  REST API :3006    │
-        │  Next.js App :3000   │    │  React Native App  │
-        └──────────────────────┘    └────────────────────┘
+│  Tables: User, AuthProvider, Role                           │
+│  (Simple MVP schema - will add more later)                  │
+└────────────────────────┬─────────────────────────────────────┘
+                         │
+                         │
+                ┌────────▼──────────┐
+                │   COTH Mobile     │
+                │  (coth-mobile)    │
+                │                   │
+                │  REST/GraphQL     │
+                │  API :3006        │
+                │  React Native App │
+                └───────────────────┘
 
-        Same Database - Different Applications
+     Data Migration/Sync with EasyMate (Planned for Later)
+                         ▼
+┌──────────────────────────────────────────────────────────────┐
+│                  EasyMate Database                            │
+│                PostgreSQL (composer_db)                       │
+│                                                              │
+│  Tables: 97+ models (Agent, Collection, Workflow, etc.)     │
+└────────────────────────┬─────────────────────────────────────┘
+                         │
+                ┌────────▼──────────┐
+                │   EasyMate/Buela  │
+                │   (buela-all)     │
+                │                   │
+                │  GraphQL API :3002│
+                │  Next.js App :3000│
+                └───────────────────┘
+
+        Separate Databases - Different Applications
 ```
 
-### Why Shared Database?
+### Why Separate Database?
 
-✅ **Pros**:
-- No data migration or sync required
-- Single source of truth for user data
-- Instant access to all EasyMate features
-- No data duplication
-- Consistent data across platforms
+✅ **Benefits**:
+- **Independent Evolution**: COTH can evolve without affecting EasyMate
+- **Clear Boundaries**: Better separation of concerns
+- **Simpler Schema**: Only 3 core models to start (User, AuthProvider, Role)
+- **Easier Testing**: Can reset/test without affecting EasyMate
+- **Performance Isolation**: COTH load won't impact EasyMate
 
-❌ **No Cons** for this use case:
-- Both apps are internal, same team
-- Independent scaling still possible
-- Database is already multi-tenant ready
+📋 **Data Migration Strategy (Future)**:
+- Option 1: Periodic ETL sync from EasyMate
+- Option 2: API-based data access when needed
+- Option 3: Event-driven sync via message queue
+- Decision: TBD based on requirements
 
 ---
 
@@ -129,18 +149,24 @@ npm install
 
 ### 3. Setup Database Infrastructure
 
-**IMPORTANT**: Use the existing database from EasyMate/Buela
+**IMPORTANT**: Create a separate database for COTH Mobile
 
 ```bash
-# From buela-all directory (EasyMate project)
+# Option 1: Use existing PostgreSQL from EasyMate infrastructure
 cd ../buela-all
 docker-compose -f docker-compose-infrastructure.yml up -d
+
+# Then create the COTH Mobile database
+docker exec -it <postgres_container_name> psql -U admin -c "CREATE DATABASE coth_mobile;"
+
+# Option 2: Use your own PostgreSQL instance
+psql -U postgres -c "CREATE DATABASE coth_mobile;"
 ```
 
 This starts:
 - PostgreSQL on port 5432
-- Redis on port 6379
-- PgBouncer connection pooler
+- Redis on port 6379 (optional)
+- PgBouncer connection pooler (optional)
 
 ### 4. Configure Environment
 
@@ -148,8 +174,8 @@ This starts:
 # Copy environment template
 cp .env.example .env
 
-# Edit .env and ensure DATABASE_URL matches EasyMate database
-# DATABASE_URL="postgresql://admin:admin@localhost:5432/composer_db?schema=public"
+# Edit .env and ensure DATABASE_URL points to coth_mobile database
+# DATABASE_URL="postgresql://admin:admin@localhost:5432/coth_mobile?schema=public"
 ```
 
 ### 5. Setup API
@@ -162,6 +188,9 @@ cp .env.example .env
 
 # Generate Prisma Client
 npm run prisma:generate
+
+# Run database migrations to create tables
+npm run prisma:migrate:dev
 
 # Start API development server
 npm run dev
@@ -186,106 +215,75 @@ npm run dev
 
 ## 📊 API Modules Overview
 
-### ✅ Implemented Modules
+### ✅ Implemented Modules (MVP)
 
-| Module | Endpoints | Description |
-|--------|-----------|-------------|
-| **Authentication** | 7 endpoints | JWT + Google OAuth, register, login, refresh |
-| **User Management** | 3 endpoints | Get user, delete user |
-| **Profile** | 4 endpoints | Get/update profile, welcome flow |
-| **Quota** | 2 endpoints | Quota info, quota events |
-| **Activity** | 3 endpoints | Activity feed, conversations, collections |
-| **Health** | 3 endpoints | Health checks, liveness, readiness |
+| Module | Type | Description |
+|--------|------|-------------|
+| **Authentication** | REST + GraphQL | JWT + Google OAuth, register, login, refresh |
+| **User Management** | REST + GraphQL | Get user, update user, delete user |
+| **Health** | REST + GraphQL | Health checks, liveness, readiness |
 
-**Total: 22 REST API endpoints**
+**Status**: MVP with core user management and authentication
+
+### 📋 Future Modules (TBD)
+
+These will be added based on requirements:
+- Profile Module (extended user information)
+- Quota Module (usage tracking)
+- Activity Module (activity feed)
+- Other domain-specific modules
 
 ### API Module Details
 
-#### 1. Authentication Module (`apps/api/src/modules/auth/`)
-- ✅ User registration with email/password
-- ✅ Login with JWT tokens (access + refresh)
-- ✅ Google OAuth 2.0 integration
-- ✅ Token refresh mechanism
-- ✅ Secure logout
-- ✅ Password hashing with bcrypt
+#### 1. Authentication Module ([apps/api/src/modules/auth/](apps/api/src/modules/auth/))
 
-**Endpoints**:
-```
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/google
-GET    /api/v1/auth/google/callback
-GET    /api/v1/auth/me
-```
+**Responsibilities**:
+- User registration with email/password
+- Login with JWT tokens (access + refresh)
+- Google OAuth 2.0 integration
+- Token refresh mechanism
+- Secure logout
+- Password hashing with bcrypt
 
-#### 2. User Management Module (`apps/api/src/modules/user/`)
-- ✅ Get current user profile
-- ✅ Get user by UUID
-- ✅ Delete user (soft delete)
-- ✅ Password verification
+**API Types**: REST + GraphQL
 
-**Endpoints**:
-```
-GET    /api/v1/users/me
-GET    /api/v1/users/:uuid
-DELETE /api/v1/users/me
-```
+**Components**:
+- DTOs for REST endpoints
+- Input types for GraphQL
+- JWT strategies (access + refresh)
+- Google OAuth strategy
+- Auth guards for protected routes
 
-#### 3. Profile Module (`apps/api/src/modules/profile/`)
-- ✅ Get extended user profile (company, address)
-- ✅ Update profile information
-- ✅ Track welcome flow completion
-- ✅ Track additional info completion
+#### 2. User Management Module ([apps/api/src/modules/user/](apps/api/src/modules/user/))
 
-**Endpoints**:
-```
-GET    /api/v1/profile
-PUT    /api/v1/profile
-POST   /api/v1/profile/welcome/complete
-POST   /api/v1/profile/additional-info/complete
-```
+**Responsibilities**:
+- Get current user profile
+- Get user by UUID
+- Update user information
+- Delete user (soft delete)
+- User CRUD operations
 
-#### 4. Quota Module (`apps/api/src/modules/quota/`)
-- ✅ Get user quota information
-- ✅ Track quota usage
-- ✅ View quota events history
-- ✅ Check available quota per definition
+**API Types**: REST + GraphQL
 
-**Endpoints**:
-```
-GET    /api/v1/quota
-GET    /api/v1/quota/events?limit=50
-```
+**Components**:
+- User entity with GraphQL decorators
+- User service with business logic
+- REST controller + GraphQL resolver
 
-#### 5. Activity Module (`apps/api/src/modules/activity/`)
-- ✅ Aggregated activity feed from:
-  - Audit logs
-  - Agent conversations
-  - Collection entries
-- ✅ Recent conversations list
-- ✅ Collection activities
+#### 3. Health Module ([apps/api/src/modules/health/](apps/api/src/modules/health/))
 
-**Endpoints**:
-```
-GET    /api/v1/activity/feed?limit=50&offset=0
-GET    /api/v1/activity/conversations?limit=10
-GET    /api/v1/activity/collections?limit=20
-```
+**Responsibilities**:
+- Database connectivity check
+- Memory usage monitoring
+- Disk space monitoring
+- Kubernetes-ready probes (liveness/readiness)
 
-#### 6. Health Module (`apps/api/src/modules/health/`)
-- ✅ Database connectivity check
-- ✅ Memory usage monitoring
-- ✅ Disk space monitoring
-- ✅ Kubernetes-ready probes
+**API Types**: REST + GraphQL
 
-**Endpoints**:
-```
-GET    /api/v1/health              # Full health check
-GET    /api/v1/health/readiness    # Readiness probe
-GET    /api/v1/health/liveness     # Liveness probe
-```
+**Components**:
+- Health status entity
+- Health check service
+- REST controller + GraphQL resolver
 
 ---
 
@@ -348,29 +346,32 @@ npm run mobile:android
 ### Connection String
 
 ```bash
-# Shared database with EasyMate
-DATABASE_URL="postgresql://admin:admin@localhost:5432/composer_db?schema=public&connect_timeout=300"
+# Separate database for COTH Mobile
+DATABASE_URL="postgresql://admin:admin@localhost:5432/coth_mobile?schema=public&connect_timeout=300"
 ```
 
-### Available Tables
+### Database Tables (MVP)
 
-The API has access to **all EasyMate/Buela tables**, including:
+The API starts with **3 core tables**:
 
-- ✅ `User` - User accounts
-- ✅ `Company` - Company information
-- ✅ `Agent` - AI agents
-- ✅ `AgentUserConversation` - Conversations
-- ✅ `CollectionDefinition` - Collection schemas
-- ✅ `CollectionEntry` - Collection data
-- ✅ `UserAgentQuota` - Quota tracking
-- ✅ `QuotaUsage` - Usage records
-- ✅ `QuotaEvent` - Quota events
-- ✅ `AuditLog` - Activity logs
-- ✅ And 90+ more models...
+- ✅ `User` - User accounts and authentication
+- ✅ `AuthProvider` - OAuth provider information (Google, etc.)
+- ✅ `Role` - User roles and permissions
+
+**Enums**:
+- `EnumUserRole` - PlatformAdmin, AccountOwner, AppAdmin, AppUser
+- `EnumUserStatus` - Active, Deactivated, Suspended, Pending, Invited
+- `EnumRegistrationReferralChannel` - PeerReferral, LinkedIn, etc.
 
 ### Prisma Schema
 
-The Prisma schema in `/apps/api/prisma/schema.prisma` defines the subset of models needed for COTH Mobile. The full schema is maintained in `buela-all`.
+The Prisma schema is in [apps/api/prisma/schema.prisma](apps/api/prisma/schema.prisma).
+
+**Schema Strategy**:
+- Start simple with core models only
+- Add new models as features are implemented
+- Keep schema focused on mobile app needs
+- Migrate/sync data from EasyMate later as needed
 
 ---
 
@@ -379,9 +380,12 @@ The Prisma schema in `/apps/api/prisma/schema.prisma` defines the subset of mode
 ### Development
 
 ```bash
-# Use existing infrastructure from buela-all
+# Option 1: Use PostgreSQL from buela-all infrastructure
 cd ../buela-all
 docker-compose -f docker-compose-infrastructure.yml up -d
+
+# Create COTH Mobile database
+docker exec -it <postgres_container> psql -U admin -c "CREATE DATABASE coth_mobile;"
 
 # Build and run COTH API
 cd ../coth-mobile/apps/api
@@ -391,7 +395,7 @@ docker run -p 3006:3006 --env-file .env coth-api:latest
 
 ### Production
 
-TBD - Will use Kubernetes or Cloud Run
+TBD - Will use Kubernetes, Cloud Run, or similar container orchestration
 
 ---
 
@@ -447,32 +451,52 @@ npm run mobile:test
 
 ## 🚧 Project Status
 
-### ✅ Completed (POC)
+### ✅ Completed (MVP)
 
 - ✅ Monorepo structure with Turborepo
-- ✅ Backend API with NestJS
-- ✅ 6 API modules implemented (22 endpoints)
-- ✅ Database connection to shared EasyMate database
+- ✅ Backend API with NestJS (REST + GraphQL)
+- ✅ 3 core API modules (Auth, User, Health)
+- ✅ Separate database setup (coth_mobile)
 - ✅ JWT + Google OAuth authentication
-- ✅ Comprehensive API documentation
+- ✅ Simplified schema (User, AuthProvider, Role)
 - ✅ Docker support
 - ✅ Health monitoring
-- ✅ Swagger documentation
+- ✅ GraphQL playground
 
 ### 🔄 In Progress
 
-- Mobile app development (Frontend team)
+- [ ] User management feature implementation
+- [ ] Authentication flow testing
+- [ ] Mobile app development (Frontend team)
 
-### 📋 TODO
+### 📋 TODO (Priority)
 
-- [ ] Add comprehensive tests
-- [ ] Configure CI/CD pipeline
-- [ ] Setup production deployment
-- [ ] Add push notifications
-- [ ] Implement WebSocket for real-time updates
-- [ ] Add analytics tracking
-- [ ] Performance monitoring
-- [ ] Security audit
+1. **Backend Development**:
+   - [ ] Implement user registration endpoint
+   - [ ] Implement login endpoint
+   - [ ] Implement user CRUD operations
+   - [ ] Add comprehensive tests
+   - [ ] Setup database migrations
+
+2. **Frontend Development**:
+   - [ ] Setup React Native project
+   - [ ] Implement authentication screens
+   - [ ] Build user profile screens
+   - [ ] API integration
+
+3. **Infrastructure**:
+   - [ ] Configure CI/CD pipeline
+   - [ ] Setup staging environment
+   - [ ] Production deployment strategy
+
+4. **Future Features** (TBD):
+   - [ ] Profile module (extended user data)
+   - [ ] Quota module (usage tracking)
+   - [ ] Activity module (feed)
+   - [ ] Data migration from EasyMate
+   - [ ] Push notifications
+   - [ ] Real-time updates (WebSocket)
+   - [ ] Analytics tracking
 
 ---
 
@@ -526,14 +550,15 @@ npm run mobile:test
 | Metric | Value |
 |--------|-------|
 | **Monorepo Apps** | 2 (API + Mobile) |
-| **API Modules** | 6 |
-| **API Endpoints** | 22 |
-| **Database Tables** | 97+ (shared) |
-| **TypeScript Files** | 31+ |
-| **Lines of Code** | ~2,500+ |
+| **API Modules** | 3 (Auth, User, Health) |
+| **API Types** | REST + GraphQL |
+| **Database Tables** | 3 (User, AuthProvider, Role) |
+| **Database Strategy** | Separate DB (coth_mobile) |
+| **TypeScript Files** | 30+ |
+| **Architecture** | NestJS + Prisma ORM |
 
 ---
 
-**Version**: 0.1.0 (POC)
-**Status**: Backend Complete, Frontend Placeholder
-**Last Updated**: 2025-10-17
+**Version**: 0.1.0 (MVP)
+**Status**: MVP Structure Ready - Implementation in Progress
+**Last Updated**: 2025-10-23
