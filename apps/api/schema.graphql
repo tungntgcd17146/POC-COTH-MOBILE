@@ -1,0 +1,238 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type ActivityFeedResponse {
+  items: [ActivityItem!]!
+  total: Int!
+}
+
+type ActivityItem {
+  action: String!
+  description: String!
+  id: ID!
+  metadata: JSON
+  relatedEntity: RelatedEntity
+  timestamp: DateTime!
+  type: String!
+}
+
+type Address {
+  city: String
+  country: Country
+  state: String
+  street1: String
+  street2: String
+  zip: String
+}
+
+type Agent {
+  description: String
+  name: String!
+  uuid: ID!
+}
+
+type AuthResponse {
+  accessToken: String!
+  refreshToken: String!
+  user: User!
+}
+
+type CollectionActivity {
+  collectionDefinition: CollectionDefinition!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  uuid: ID!
+}
+
+type CollectionDefinition {
+  name: String!
+  slug: String
+  uuid: ID!
+}
+
+type Company {
+  logo: String
+  name: String!
+  uuid: ID!
+}
+
+type Conversation {
+  agent: Agent!
+  createdAt: DateTime!
+  messageCount: Int!
+  updatedAt: DateTime!
+  uuid: ID!
+}
+
+type Country {
+  code: String!
+  name: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type HealthStatus {
+  database: String!
+  status: String!
+  timestamp: DateTime!
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  """Mark additional information flow as completed"""
+  completeAdditionalInfo: User!
+
+  """Mark welcome flow as completed"""
+  completeWelcome: User!
+
+  """Login with email and password"""
+  login(input: LoginInput!): AuthResponse!
+
+  """Logout current user"""
+  logout: Boolean!
+
+  """Refresh access token using refresh token"""
+  refreshToken(refreshToken: String!): TokenResponse!
+
+  """Register a new user account"""
+  register(input: RegisterInput!): AuthResponse!
+
+  """Update user profile information"""
+  updateProfile(input: UpdateProfileInput!): User!
+}
+
+type Query {
+  """Get user activity feed"""
+  activityFeed(limit: Int = 50, offset: Int = 0): ActivityFeedResponse!
+
+  """Get user's collection activities"""
+  collectionActivities(limit: Int = 20): [CollectionActivity!]!
+
+  """Get API health status"""
+  health: HealthStatus!
+
+  """Get current authenticated user"""
+  me: User!
+
+  """Get current user extended profile"""
+  profile: UserProfile!
+
+  """Get quota events history"""
+  quotaEvents(limit: Int = 50): [QuotaEvent!]!
+
+  """Get recent agent conversations"""
+  recentConversations(limit: Int = 10): [Conversation!]!
+
+  """Get current user quota information"""
+  userQuota: QuotaInfo!
+}
+
+type QuotaDefinition {
+  description: String
+  name: String!
+  uuid: ID!
+}
+
+type QuotaEvent {
+  amount: Int!
+  createdAt: DateTime!
+  eventType: String!
+  quotaDefinition: QuotaDefinition!
+  uuid: ID!
+}
+
+type QuotaInfo {
+  quotas: [UserQuota!]!
+  recentUsage: [QuotaUsage!]!
+  totalUsage: Int!
+}
+
+type QuotaUsage {
+  createdAt: DateTime!
+  usage: Int!
+  uuid: ID!
+}
+
+input RegisterInput {
+  email: String!
+  firstName: String
+  lastName: String
+  password: String!
+  phone: String
+  username: String!
+}
+
+type RelatedEntity {
+  id: String!
+  name: String
+  type: String!
+}
+
+type TokenResponse {
+  accessToken: String!
+  refreshToken: String!
+}
+
+input UpdateProfileInput {
+  firstName: String
+  lastName: String
+  metadata: JSON
+  phone: String
+}
+
+type User {
+  completedAdditionalInformation: Boolean!
+  completedWelcome: Boolean!
+  createdAt: DateTime!
+  email: String!
+  firstName: String
+  lastLoginTime: DateTime
+  lastName: String
+  metadata: JSON
+  phone: String
+  roles: [String!]!
+  status: String
+  updatedAt: DateTime!
+  username: String!
+  uuid: ID!
+}
+
+type UserProfile {
+  address: Address
+  company: Company
+  completedAdditionalInformation: Boolean!
+  completedWelcome: Boolean!
+  email: String!
+  firstName: String
+  lastName: String
+  metadata: JSON
+  phone: String
+  roles: [String!]!
+  status: String
+  username: String!
+  uuid: ID!
+}
+
+type UserQuota {
+  currentUsage: Int!
+  isUnlimited: Boolean!
+  limit: Int!
+  quotaDefinition: QuotaDefinition!
+  remainingQuota: Int
+  resetDate: DateTime
+  usagePercentage: Float!
+  uuid: ID!
+}

@@ -1,0 +1,38 @@
+{
+  "name": "coth-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "COTH Mobile - Monorepo for mobile application with shared EasyMate database",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "turbo run format",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules",
+    "api:dev": "turbo dev --filter=@coth/api",
+    "api:build": "turbo build --filter=@coth/api",
+    "api:test": "turbo test --filter=@coth/api",
+    "mobile:dev": "turbo dev --filter=@coth/mobile-app",
+    "mobile:ios": "cd apps/mobile && npm run ios",
+    "mobile:android": "cd apps/mobile && npm run android"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.5",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@10.7.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tooling/*"
+  ],
+  "dependencies": {
+    "axios": "^1.12.2"
+  }
+}

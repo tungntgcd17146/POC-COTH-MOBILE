@@ -1,0 +1,298 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table User {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  username String [not null]
+  email String [unique, not null]
+  firstName String
+  lastName String
+  password String [not null]
+  roles EnumUserRole[] [not null]
+  status EnumUserStatus [default: 'Deactivated']
+  completedWelcome Boolean [default: false]
+  phone String
+  refreshToken String
+  lastLoginTime DateTime
+  passwordResetRequired Boolean [default: false]
+  deletedAt DateTime
+  completedAdditionalInformation Boolean [default: false]
+  referralChannels EnumRegistrationReferralChannel[] [not null]
+  metadata Json
+  company Company
+  companyId BigInt
+  address Address
+  addressId BigInt [unique]
+  authProviders AuthProvider [not null]
+  userAgentQuotas UserAgentQuota [not null]
+  quotaUsage QuotaUsage [not null]
+  quotaEvents QuotaEvent [not null]
+  agentUserConversations AgentUserConversation [not null]
+  collectionEntries CollectionEntry [not null]
+  auditLogs AuditLog [not null]
+}
+
+Table Company {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  name String [not null]
+  description String
+  website String
+  phone String
+  email String
+  deletedAt DateTime
+  metadata Json
+  users User [not null]
+  address Address
+  addressId BigInt
+}
+
+Table Address {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  street1 String
+  street2 String
+  city String
+  state String
+  postalCode String
+  deletedAt DateTime
+  country Country
+  countryId BigInt
+  user User
+  companies Company [not null]
+}
+
+Table Country {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  code String [unique, not null]
+  name String [not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  addresses Address [not null]
+}
+
+Table AuthProvider {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  userId BigInt [not null]
+  provider String [not null]
+  providerId String [not null]
+  providerData Json
+  user User [not null]
+
+  indexes {
+    (userId, provider) [unique]
+  }
+}
+
+Table Role {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  name String [unique, not null]
+  description String
+  permissions Json
+  deletedAt DateTime
+}
+
+Table UserAgentQuota {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  userId BigInt [not null]
+  quotaDefinitionId BigInt [not null]
+  currentUsage Int [not null, default: 0]
+  limit Int [not null]
+  resetDate DateTime
+  isUnlimited Boolean [not null, default: false]
+  user User [not null]
+  quotaDefinition QuotaDefinition [not null]
+}
+
+Table QuotaDefinition {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  name String [unique, not null]
+  description String
+  defaultLimit Int [not null]
+  resetPeriod String
+  userAgentQuotas UserAgentQuota [not null]
+  quotaEvents QuotaEvent [not null]
+}
+
+Table QuotaUsage {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  userId BigInt [not null]
+  usage Int [not null]
+  metadata Json
+  user User [not null]
+}
+
+Table QuotaEvent {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  userId BigInt [not null]
+  quotaDefinitionId BigInt [not null]
+  eventType String [not null]
+  amount Int [not null]
+  metadata Json
+  user User [not null]
+  quotaDefinition QuotaDefinition [not null]
+}
+
+Table Agent {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  name String [not null]
+  description String
+  configuration Json
+  isActive Boolean [not null, default: true]
+  deletedAt DateTime
+  agentUserConversations AgentUserConversation [not null]
+}
+
+Table AgentUserConversation {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  userId BigInt [not null]
+  agentId BigInt [not null]
+  title String
+  metadata Json
+  deletedAt DateTime
+  user User [not null]
+  agent Agent [not null]
+  agentUserMessages AgentUserMessage [not null]
+}
+
+Table AgentUserMessage {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  conversationId BigInt [not null]
+  content String [not null]
+  role String [not null]
+  metadata Json
+  conversation AgentUserConversation [not null]
+}
+
+Table CollectionDefinition {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  name String [not null]
+  slug String [unique]
+  description String
+  isSystem Boolean [not null, default: false]
+  deletedAt DateTime
+  collectionEntries CollectionEntry [not null]
+}
+
+Table CollectionEntry {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+  userId BigInt [not null]
+  collectionDefinitionId BigInt [not null]
+  data Json
+  deletedAt DateTime
+  user User [not null]
+  collectionDefinition CollectionDefinition [not null]
+}
+
+Table AuditLog {
+  id BigInt [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`]
+  userId BigInt [not null]
+  action String [not null]
+  resource String [not null]
+  resourceId String
+  changes Json
+  metadata Json
+  user User [not null]
+}
+
+Enum EnumUserRole {
+  PlatformAdmin
+  AccountOwner
+  AppAdmin
+  AppUser
+}
+
+Enum EnumUserStatus {
+  Active
+  Deactivated
+  Suspended
+  Pending
+  Invited
+}
+
+Enum EnumRegistrationReferralChannel {
+  PeerReferral
+  LinkedIn
+  Facebook
+  Youtube
+  Twitter
+  Forum
+  SearchEngine
+  VC
+  Podcast
+  News
+  Other
+}
+
+Ref: User.companyId > Company.id
+
+Ref: User.addressId - Address.id
+
+Ref: Company.addressId > Address.id
+
+Ref: Address.countryId > Country.id
+
+Ref: AuthProvider.userId > User.id
+
+Ref: UserAgentQuota.userId > User.id
+
+Ref: UserAgentQuota.quotaDefinitionId > QuotaDefinition.id
+
+Ref: QuotaUsage.userId > User.id
+
+Ref: QuotaEvent.userId > User.id
+
+Ref: QuotaEvent.quotaDefinitionId > QuotaDefinition.id
+
+Ref: AgentUserConversation.userId > User.id
+
+Ref: AgentUserConversation.agentId > Agent.id
+
+Ref: AgentUserMessage.conversationId > AgentUserConversation.id
+
+Ref: CollectionEntry.userId > User.id
+
+Ref: CollectionEntry.collectionDefinitionId > CollectionDefinition.id
+
+Ref: AuditLog.userId > User.id
